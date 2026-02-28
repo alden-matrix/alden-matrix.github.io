@@ -1,0 +1,66 @@
+baseURL = 'https://alden-matrix.github.io/'
+languageCode = 'zh-cn'
+title = "Home"
+theme = 'PaperMod'
+paginate = 10
+
+# 只保留标签，彻底去掉分类
+[taxonomies]
+  tag = "tags"
+
+[params]
+  env = "production"
+  description = "写写代码，记记笔记"
+  author = "Alden"
+  defaultTheme = "auto"
+  showReadingTime = true
+  showShareButtons = false
+  showPostNavLinks = true
+  showBreadCrumbs = true
+  showCodeCopyButtons = true
+  showToc = true
+  TocOpen = true
+
+  [params.homeInfoParams]
+    Title = "Hi there 👋"
+    Content = "写 Go 的，平时喜欢折腾一些有意思的东西，这里记录一下学到的和踩过的坑"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/alden-matrix"
+
+  [params.cover]
+    linkFullImages = true
+    responsiveImages = true
+
+[menu]
+  [[menu.main]]
+    identifier = "posts"
+    name = "文章"
+    url = "/posts/"
+    weight = 10
+  [[menu.main]]
+    identifier = "tags"
+    name = "标签"
+    url = "/tags/"
+    weight = 20
+  [[menu.main]]
+    identifier = "archives"
+    name = "归档"
+    url = "/archives/"
+    weight = 30
+  [[menu.main]]
+    identifier = "search"
+    name = "搜索"
+    url = "/search/"
+    weight = 40
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[markup]
+  [markup.highlight]
+    codeFences = true
+    guessSyntax = true
+    lineNos = false
+    style = "monokai"
