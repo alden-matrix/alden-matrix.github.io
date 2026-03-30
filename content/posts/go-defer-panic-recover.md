@@ -169,6 +169,8 @@ func foo() {
 | Go 1.14+ | open-coded（内联） | ~6ns |
 | 直接函数调用 | 无 defer | ~4.4ns |
 
+（数据来源：[Go open-coded defer 设计提案](https://go.googlesource.com/proposal/+/refs/heads/master/design/34481-opencoded-defers.md) 中的 benchmark，具体数字因机器和 Go 版本会有波动，但量级关系是稳定的。）
+
 从 50ns 到 6ns，open-coded defer 的开销几乎等同于直接函数调用。这就是为什么现在不需要担心 defer 的性能问题。
 
 **一句话总结：Go 1.14 之后，大多数场景下 defer 已经被编译器内联成了普通的函数调用，你唯一需要避免的是在热循环里写 defer（不会走 open-coded 路径，而且每次循环都要注册/执行）。**
@@ -309,14 +311,33 @@ panic 触发时，运行时调用 `gopanic`（定义在 `runtime/panic.go`），
 defer 函数里也可以 panic，这会形成嵌套：
 
 ```go
-defer func() {
-    fmt.Println("defer 1")
-    panic("second panic") // defer 执行过程中又 panic 了
-}()
-panic("first panic")
+func main() {
+    defer func() {
+        fmt.Println("defer 1")
+        panic("second panic")
+    }()
+    defer func() {
+        fmt.Println("defer 2")
+    }()
+    panic("first panic")
+}
 ```
 
-新 panic 会接管旧 panic，继续执行剩余的 defer。如果最终没有 recover，所有嵌套 panic 的信息都会被打印出来。
+输出：
+
+```
+defer 2
+defer 1
+panic: first panic
+	goroutine 1 [running]:
+	...
+panic: second panic
+	goroutine 1 [running]:
+	...
+exit status 2
+```
+
+执行顺序：`panic("first panic")` 触发 → 执行 defer 2（正常打印）→ 执行 defer 1（打印后又 panic）→ 两个 panic 的信息都会被打印出来，程序退出。新 panic 不会覆盖旧 panic，而是追加到 panic 链上。
 
 ---
 

@@ -173,29 +173,41 @@ errors.Is(wrapped, ErrNotFound)    // true  ← 沿着 wrap 链找到了
 
 ### errors.As：沿着 wrap 链找类型
 
-逻辑类似，但不是比较值，而是尝试类型断言：
+逻辑类似，但不是比较值，而是检查类型是否可赋值：
 
 ```go
-// 标准库源码简化版
-func As(err error, target interface{}) bool {
+// 标准库源码简化版（实际使用 internal/reflectlite，这里用 reflect 表达逻辑）
+func as(err error, target any, targetVal Value, targetType Type) bool {
     for {
-        // 尝试将 err 断言为 target 指向的类型
-        if reflect.TypeOf(err).AssignableTo(reflect.TypeOf(target).Elem()) {
-            reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
+        // 1. 检查 err 的类型能否赋值给 target 指向的类型
+        if TypeOf(err).AssignableTo(targetType) {
+            targetVal.Elem().Set(ValueOf(err))
             return true
         }
-        // 如果 err 实现了 As 方法，调用它
-        if x, ok := err.(interface{ As(interface{}) bool }); ok {
-            if x.As(target) {
-                return true
-            }
+        // 2. 检查自定义 As 方法
+        if x, ok := err.(interface{ As(any) bool }); ok && x.As(target) {
+            return true
         }
-        if err = Unwrap(err); err == nil {
+        // 3. Unwrap 继续往下找（支持单个和多个错误）
+        switch x := err.(type) {
+        case interface{ Unwrap() error }:
+            err = x.Unwrap()
+            if err == nil { return false }
+        case interface{ Unwrap() []error }:
+            for _, e := range x.Unwrap() {
+                if e != nil && as(e, target, targetVal, targetType) {
+                    return true
+                }
+            }
+            return false
+        default:
             return false
         }
     }
 }
 ```
+
+注意：标准库用的是 `internal/reflectlite`（轻量反射包），不是完整的 `reflect`，性能更好。另外 Go 1.20+ 支持 `Unwrap() []error` 分支，会递归遍历所有错误树。
 
 **一句话区分**：Is 看值（"是不是这个错误"），As 看类型（"是不是这类错误"）并提取。
 

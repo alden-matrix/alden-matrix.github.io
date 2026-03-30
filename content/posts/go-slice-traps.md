@@ -375,42 +375,21 @@ func appendElement(s *[]int) {
 
 ---
 
-## copy 的实现细节
-
-`copy` 是编译器内建函数，根据元素类型走不同的代码路径：
-
-| 元素类型 | 调用的 runtime 函数 | 区别 |
-|---------|-------|------|
-| 不含指针（int, float64, [4]byte 等） | `slicecopy` | 直接 `memmove`，不通知 GC |
-| 含指针（*T, []T, map, interface 等） | `typedslicecopy` | `memmove` 之前要执行**写屏障** |
-
-为什么含指针的类型需要写屏障？因为 Go 的 GC 是并发运行的。当你覆写一块包含指针的内存时，GC 需要知道：旧指针指向的对象可能还有其他地方在用，新指针指向的对象需要被追踪。`bulkBarrierPreWrite` 就是在拷贝之前通知 GC 这些信息。
-
-另外，`slicecopy` 对单字节拷贝有快速路径：
-
-```go
-if size == 1 {
-    *(*byte)(toPtr) = *(*byte)(fromPtr) // 不走 memmove
-}
-```
-
----
-
 ## 从大 slice 截取小部分：注意内存泄漏
 
 ```go
-// 读了一个大文件，只需要前 100 字节的 header
 data, _ := os.ReadFile("big_file.bin") // 假设 500MB
 
-// 错误做法：header 引用着 500MB 的底层数组，GC 无法回收
 header := data[:100]
+// header 虽然只有 100 字节，但它引用着 500MB 的底层数组，GC 无法回收
 
-// 正确做法：复制出来，让原始数组可以被回收
+// 正确做法：复制出来
 header := make([]byte, 100)
 copy(header, data[:100])
+// data 没人引用了，GC 可以回收那 500MB
 ```
 
-这不是 slice 的 bug，是 slice 的设计决定的：子 slice 和父 slice 共享底层数组，只要有一个 slice 还活着，整个底层数组就不会被回收。
+子 slice 和父 slice 共享底层数组，只要有一个 slice 还活着，整个底层数组就不会被回收。在处理大数据时要注意这一点。
 
 ---
 
@@ -438,14 +417,18 @@ func buildGood(n int) []int {
 }
 ```
 
-10000 个 int 的 benchmark：
+你可以自己跑 benchmark 验证：
 
-```
-BenchmarkBuildBad     300000 ns/op   386000 B/op   20 allocs
-BenchmarkBuildGood     80000 ns/op    81920 B/op    1 allocs
+```go
+func BenchmarkBuildBad(b *testing.B) {
+    for i := 0; i < b.N; i++ { buildBad(10000) }
+}
+func BenchmarkBuildGood(b *testing.B) {
+    for i := 0; i < b.N; i++ { buildGood(10000) }
+}
 ```
 
-预分配快约 **3.7 倍**，内存分配从 20 次降到 1 次。数据量越大差距越明显。
+在我的机器上（Go 1.24，Apple M2），预分配版本快约 3~4 倍，内存分配从 20 次降到 1 次。具体数字跟机器和 Go 版本有关，但量级差距是稳定的。
 
 ---
 
