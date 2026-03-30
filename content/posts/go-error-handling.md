@@ -140,9 +140,20 @@ func GetUserProfile(userID int64) (*Profile, error) {
 
 ```go
 // 标准库源码简化版
-func is(err, target error) bool {
+func Is(err, target error) bool {
+    if target == nil {
+        return err == target
+    }
+    // 关键：先检查 target 是否可比较
+    // 如果 target 是不可比较类型（比如包含 slice 的 struct），
+    // 直接 == 会 panic，所以要先检查
+    isComparable := reflectlite.TypeOf(target).Comparable()
+    return is(err, target, isComparable)
+}
+
+func is(err error, target error, isComparable bool) bool {
     for {
-        if err == target {       // 直接比较
+        if isComparable && err == target {
             return true
         }
         // 如果 err 实现了 Is 方法，调用它（自定义匹配逻辑）
@@ -151,14 +162,14 @@ func is(err, target error) bool {
                 return true
             }
         }
-        // Unwrap 继续往下找（支持单个和多个错误）
+        // Unwrap 继续往下找（Go 1.20+ 支持多错误树）
         switch x := err.(type) {
         case interface{ Unwrap() error }:
             err = x.Unwrap()
             if err == nil { return false }
         case interface{ Unwrap() []error }:
             for _, e := range x.Unwrap() {
-                if e != nil && is(e, target) {
+                if e != nil && is(e, target, isComparable) {
                     return true
                 }
             }
@@ -170,7 +181,7 @@ func is(err, target error) bool {
 }
 ```
 
-跟 `errors.As` 一样，Go 1.20+ 支持 `Unwrap() []error`，会递归遍历整棵错误树。
+注意 `isComparable` 检查——这是很多简化版源码分析遗漏的细节。如果 target 是不可比较类型，`==` 会 panic，标准库通过这个检查来避免。
 
 所以 `errors.Is` 的工作方式是：从当前错误开始，沿着 `Unwrap()` 链一层层往下找，直到找到匹配的 target 或者到链尾。
 

@@ -376,12 +376,13 @@ func appendElement(s *[]int) {
 ```go
 data, _ := os.ReadFile("big_file.bin") // 假设 500MB
 
-header := data[:100]
-// header 虽然只有 100 字节，但它引用着 500MB 的底层数组，GC 无法回收
+// 错误做法：
+bad := data[:100]
+// bad 虽然只有 100 字节，但它引用着 500MB 的底层数组，GC 无法回收
 
 // 正确做法：复制出来
-header := make([]byte, 100)
-copy(header, data[:100])
+good := make([]byte, 100)
+copy(good, data[:100])
 // data 没人引用了，GC 可以回收那 500MB
 ```
 

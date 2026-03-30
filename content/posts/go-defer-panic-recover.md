@@ -390,12 +390,16 @@ func main() {
 ```go
 // ❌ 不能工作
 func safeRecover() any {
-    return recover() // 这里距离 gopanic 隔了两帧
+    return recover()
 }
 
-defer func() {
-    r := safeRecover() // r 永远是 nil
-}()
+func doSomething() {
+    defer func() {
+        r := safeRecover() // r 永远是 nil
+        fmt.Println(r)
+    }()
+    panic("boom")
+}
 ```
 
 封装意味着多了一层栈帧，栈帧数变成 2，recover 直接返回 nil。

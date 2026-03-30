@@ -231,9 +231,9 @@ type Namer interface   { SetName(string) }
 
 var d Dog
 
-var s Speaker = d   // ✅ Dog 有值接收者方法 Speak，满足 Speaker
-var n Namer = d     // ❌ 编译错误！Dog 的方法集里没有 SetName
-var n Namer = &d    // ✅ *Dog 的方法集包含 Speak + SetName
+var s Speaker = d    // ✅ Dog 有值接收者方法 Speak，满足 Speaker
+// var n1 Namer = d  // ❌ 编译错误！Dog 的方法集里没有 SetName
+var n2 Namer = &d    // ✅ *Dog 的方法集包含 Speak + SetName
 ```
 
 ### 为什么 T 不能用 *T 的方法
