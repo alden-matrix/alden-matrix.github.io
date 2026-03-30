@@ -330,10 +330,12 @@ defer 2
 defer 1
 panic: first panic
 	goroutine 1 [running]:
-	...
+	...（堆栈信息省略，实际会显示文件名和行号）
+
 panic: second panic
 	goroutine 1 [running]:
-	...
+	...（堆栈信息省略）
+
 exit status 2
 ```
 
@@ -376,10 +378,12 @@ func main() {
 |------|-----------|-------------|
 | `defer func() { recover() }()` | 1（匿名函数） | ✅ |
 | `defer recover()` | 0（直接调用） | ❌ |
-| `defer func() { doRecover() }()` | 2（匿名函数 + doRecover） | ❌ |
+| `defer func() { doRecover() }()` | 2（匿名函数 + doRecover） | ❌* |
 | `defer func() { func() { recover() }() }()` | 2 | ❌ |
 
-第一种是唯一能工作的形式。
+第一种是唯一可靠的形式。
+
+*注意：`doRecover()` 如果足够简单，编译器可能将其内联，内联后栈帧被消除，recover 有可能生效。但这取决于编译器的内联决策，不同 Go 版本行为可能不同，不要依赖这个。
 
 **一个常见的错误**：把 recover 封装到工具函数里。
 

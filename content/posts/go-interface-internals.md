@@ -50,6 +50,8 @@ Go runtime 中 interface 有两种实现（定义在 `runtime/runtime2.go`）：
 
 ### eface：空接口 `interface{}` / `any`
 
+Go 1.18 起 `any` 就是 `interface{}` 的类型别名（`type any = interface{}`），两者完全等价，底层都是 eface：
+
 ```go
 type eface struct {
     _type *_type          // 动态类型信息
@@ -124,11 +126,12 @@ err (iface)
 ```go
 // 方案一：直接返回 nil，不经过具体类型变量
 func queryUser(id int64) error {
-    // ...
-    if 没出错 {
-        return nil  // 直接返回 nil
+    result, err := db.Query(id)
+    if err != nil {
+        return &DBError{Code: 500, Msg: "查询失败"}
     }
-    return &DBError{Code: 500, Msg: "查询失败"}
+    _ = result
+    return nil  // 直接返回 nil
 }
 
 // 方案二：如果必须用具体类型变量，先判断再返回

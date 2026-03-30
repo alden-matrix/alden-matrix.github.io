@@ -140,7 +140,7 @@ func GetUserProfile(userID int64) (*Profile, error) {
 
 ```go
 // 标准库源码简化版
-func Is(err, target error) bool {
+func is(err, target error) bool {
     for {
         if err == target {       // 直接比较
             return true
@@ -151,13 +151,26 @@ func Is(err, target error) bool {
                 return true
             }
         }
-        // 尝试 Unwrap，继续往下找
-        if err = Unwrap(err); err == nil {
+        // Unwrap 继续往下找（支持单个和多个错误）
+        switch x := err.(type) {
+        case interface{ Unwrap() error }:
+            err = x.Unwrap()
+            if err == nil { return false }
+        case interface{ Unwrap() []error }:
+            for _, e := range x.Unwrap() {
+                if e != nil && is(e, target) {
+                    return true
+                }
+            }
+            return false
+        default:
             return false
         }
     }
 }
 ```
+
+跟 `errors.As` 一样，Go 1.20+ 支持 `Unwrap() []error`，会递归遍历整棵错误树。
 
 所以 `errors.Is` 的工作方式是：从当前错误开始，沿着 `Unwrap()` 链一层层往下找，直到找到匹配的 target 或者到链尾。
 

@@ -298,11 +298,7 @@ func main() {
    - 不含指针的类型：mallocgc 不需要 GC 扫描
    - 含指针的类型：mallocgc 需要零初始化 + 写屏障
 
-5. 拷贝旧数据
-   - memmove 底层是平台相关的汇编实现
-   - 小于 256 字节用专用直线代码（无循环开销）
-   - 大于 2KB 用 REP MOVSQ 或 AVX 指令
-   - 超过 16MB 用非时序存储避免污染 CPU 缓存
+5. 拷贝旧数据到新内存（memmove）
 
 6. 返回新的 slice header
 ```
@@ -462,5 +458,5 @@ s = nil
 | 实际 cap | 被 roundupsize 按 size class 对齐，可能比预期大 |
 | nil vs 空 | `json.Marshal` 结果不同：`null` vs `[]` |
 | 传参 | 传的是 header 副本，修改元素影响原始，append 不影响 |
-| copy | 含指针类型需要写屏障通知 GC |
+| 内存泄漏 | 子 slice 引用大底层数组时，copy 出来让原数组可以被 GC |
 | 性能 | 知道大小就 `make([]T, 0, n)`，省掉多次扩容和拷贝 |
