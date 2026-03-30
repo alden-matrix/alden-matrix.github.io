@@ -360,12 +360,12 @@ func appendElement(s []int) {
 
 ```go
 // 方式一：返回新 slice（推荐）
-func appendElement(s []int) []int {
+func appendAndReturn(s []int) []int {
     return append(s, 100)
 }
 
 // 方式二：传指针
-func appendElement(s *[]int) {
+func appendByPtr(s *[]int) {
     *s = append(*s, 100)
 }
 ```

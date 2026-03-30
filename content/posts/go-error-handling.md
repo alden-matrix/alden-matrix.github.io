@@ -141,7 +141,7 @@ func GetUserProfile(userID int64) (*Profile, error) {
 ```go
 // 标准库源码简化版
 func Is(err, target error) bool {
-    if target == nil {
+    if err == nil || target == nil {
         return err == target
     }
     // 关键：先检查 target 是否可比较
